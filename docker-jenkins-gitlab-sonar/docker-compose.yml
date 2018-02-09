@@ -1,0 +1,98 @@
+version: '2'
+services:
+  jj:
+    restart: on-failure
+    build: ./jenkins
+    container_name: jenkins_container
+    ports:
+     - "${JENKINS_HTTP_PORT}:8080"
+     - "${JENKINS_TCP_PORT_FOR_JNLP_AGENTS}:50000"
+    networks:
+      main:
+        aliases:
+          - jenkins.dev
+    environment:
+      - JENKINS_ADMIN_NAME
+      - JENKINS_ADMIN_PASSWORD
+      - JENKINS_DEVELOPER_NAME
+      - JENKINS_DEVELOPER_PASSWORD
+    volumes:
+      - jenkins-home:/var/jenkins_hom
+  gl:
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-logs:/var/log/gitlab
+      - gitlab-data:/var/opt/gitlab
+    ports:
+     - "${GITLAB_HTTP_PORT}:80"
+     - "${GITLAB_HTTPS_PORT}:443"
+     - "${GITLAB_SSH_PORT}:22"
+    environment:
+      - TZ=Europe/Berlin
+      - GITLAB_OMNIBUS_CONFIG=external_url 'http://localhost/'; gitlab_rails['initial_root_password'] = '${GITLAB_ADMIN_PASSWORD}'; gitlab_rails['lfs_enabled'] = true;
+      - GITLAB_ADMIN_NAME
+      - GITLAB_ADMIN_PASSWORD
+      - GITLAB_JENKINS_NAME
+      - GITLAB_JENKINS_PASSWORD
+      - GITLAB_JENKINS_EMAIL
+      - GITLAB_JENKINS_PUBLIC_KEY
+      - GITLAB_DEVELOPER_NAME
+      - GITLAB_DEVELOPER_PASSWORD
+      - GITLAB_DEVELOPER_EMAIL
+      - JENKINS_ADMIN_NAME
+      - JENKINS_ADMIN_PASSWORD
+    container_name: gitlab_container
+    restart: on-failure
+    hostname: gitlab.example.com
+    build: ./gitlab
+    networks:
+      main:
+        aliases:
+          - gitlab.dev
+  so:
+    build: ./sonar
+    container_name: sonar_container
+    ports:
+      - "${SONAR_HTTP_PORT}:9000"
+    networks:
+      main:
+        aliases:
+          - sonar.dev
+    environment:
+      - SONARQUBE_JDBC_URL=jdbc:postgresql://postgres.dev:5432/sonar
+      - SONARQUBE_JDBC_USERNAME=sonar
+      - SONARQUBE_JDBC_PASSWORD=sonar
+    volumes:
+      - sonarqube-conf:/opt/sonarqube/conf
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-extensions:/opt/sonarqube/extensions
+      - sonarqube-plugins:/opt/sonarqube/lib/bundled-plugins
+    restart: on-failure
+  db:
+    image: postgres
+    networks:
+      main:
+        aliases:
+          - postgres.dev
+    environment:
+      - POSTGRES_USER=sonar
+      - POSTGRES_PASSWORD=sonar
+    volumes:
+      - postgresql:/var/lib/postgresql
+      - postgresql-data:/var/lib/postgresql/data
+    restart: on-failure
+
+networks:
+  main:
+
+volumes:
+  jenkins-home:
+  gitlab-config:
+  gitlab-data:
+  gitlab-logs:
+  sonarqube-conf:
+  sonarqube-data:
+  sonarqube-extensions:
+  sonarqube-plugins:
+  postgresql:
+  postgresql-data:
